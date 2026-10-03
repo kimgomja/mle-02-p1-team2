@@ -55,7 +55,7 @@ Storage 설정이 있으면 로컬 CSV 없이 통계를 로딩합니다. CSV는 
 - Repository: kimgomja/mle-02-p1-team2 (개인 Fork)
 - Branch: codex/cloud-statistics-db-fallback
 - Main file path: src/Project_1/app.py
-- Python: 3.12
+- Python: 3.12 (Streamlit Advanced settings에서 직접 선택)
 - Dependencies: app.py 옆 requirements.txt
 
 SIF·KOSHA 문서의 공개 이용 범위가 정리될 때까지 Streamlit 공개 앱 생성은 보류합니다. Fork 브랜치 코드는 배포 후보이며 Cloud 통합 검증 전입니다.
