@@ -113,6 +113,8 @@ except (RuntimeError, ValueError) as exc:
     logger.error("통계 데이터 로딩 실패: %s", exc)
     st.error("통계 데이터를 불러오지 못했습니다. 저장소 연결과 데이터 준비 상태를 확인해 주세요.")
     st.stop()
+if data.attrs.get("source_warning"):
+    st.warning(data.attrs["source_warning"])
 years = sorted(data["연도"].unique().tolist(), reverse=True) if not data.empty else [2025]
 industries = ["전체", *sorted(data["산업중분류"].unique().tolist())] if not data.empty else ["전체"]
 sizes = ["전체", *SIZE_ORDER]
