@@ -19,7 +19,10 @@ CONFIG = {
     "SUPABASE_STORAGE_BUCKET": "industrial-statistics",
 }
 CSV = ("대업종,구분," + ",".join(str(i) for i in range(10)) + "\n"
-       + "제조업,테스트업종," + ",".join("1" for _ in range(10)) + "\n").encode("utf-8-sig")
+       + "\n".join(
+           f"제조업,테스트업종{index or ''}," + ",".join("1" for _ in range(10))
+           for index in range(30)
+       ) + "\n").encode("utf-8-sig")
 
 
 class StorageStatisticsTests(unittest.TestCase):
@@ -42,6 +45,23 @@ class StorageStatisticsTests(unittest.TestCase):
             data = statistics.load_statistics(statistics.DATA_DIR)
         remote.assert_not_called()
         self.assertEqual(statistics.kpi_value(data, 2025, "테스트업종", None, "사고사망자수"), 10)
+
+    def test_cp949_source_csv_loads_and_preserves_explicit_missing_cells(self):
+        text = CSV.decode("utf-8-sig").replace(
+            "제조업,테스트업종,1,1,", "제조업,테스트업종,자료 없음,1,", 1
+        )
+        source = BytesIO(text.encode("cp949"))
+        data = statistics.load_stat_csv("사고재해자수", 2025, source)
+        self.assertEqual(len(data), 300)
+        self.assertEqual(data["산업중분류"].nunique(), 30)
+        self.assertTrue(pd.isna(data.loc[data["산업중분류"] == "테스트업종", "값"].iloc[0]))
+
+    def test_unexpected_text_in_statistic_cell_is_rejected(self):
+        text = CSV.decode("utf-8-sig").replace(
+            "제조업,테스트업종,1,1,", "제조업,테스트업종,값오류,1,", 1
+        )
+        with self.assertRaises(ValueError):
+            statistics.load_stat_csv("사고재해자수", 2025, BytesIO(text.encode("utf-8-sig")))
 
     def test_cloud_secrets_take_precedence_over_environment(self):
         with patch.dict(os.environ, {"SUPABASE_SECRET_KEY": "local_value"}), \

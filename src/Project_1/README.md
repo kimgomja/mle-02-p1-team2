@@ -14,7 +14,7 @@ python3 -m venv .venv
 
 저장소 루트의 로컬 .env 또는 Streamlit Secrets에 DATABASE_URL(또는 SUPABASE_DB_URL)과 OPENAI_API_KEY를 설정합니다. Supabase에서는 Session pooler의 PostgreSQL URI(5432 포트)를 사용합니다. 비밀값은 커밋하지 않습니다.
 
-통계 CSV는 Supabase Private Storage에서 읽습니다. 비공개 Storage 인증이 실패하면 `public.rag_day1_documents`의 `industry_stat` 문서를 읽기 전용으로 조회해 2025년 자료를 표시합니다. 이 대체 경로에서는 2020~2024년 자료가 없어 장기 추세가 비어 있습니다. Storage 설정이 없는 로컬 환경은 `src/Project_1/data/`를 사용합니다. 사고 검색에는 `rag_day1_documents`, KOSHA 검색에는 `langchain_pg_collection`/`langchain_pg_embedding`의 `kosha_guides` 컬렉션이 필요합니다. 대화 이력은 `chat_history`를 사용합니다. 팀 앱의 DB 구조와 같다고 가정하지 않습니다.
+통계 CSV는 Supabase Private Storage에서 읽습니다. 비공개 Storage 인증이 실패하면 `public.rag_day1_documents`의 `industry_stat` 문서를 읽기 전용으로 조회해 2025년 자료를 표시합니다. 이 대체 경로에는 2020~2024년 자료가 없어 장기 추세가 비어 있습니다. Storage 설정이 없는 로컬 환경은 `src/Project_1/data/`를 사용합니다. 사고 검색에는 `rag_day1_documents`, KOSHA 검색에는 `langchain_pg_collection`/`langchain_pg_embedding`의 `kosha_guides` 컬렉션이 필요합니다. 대화 이력은 `chat_history`를 사용합니다. 팀 앱의 DB 구조와 같다고 가정하지 않습니다.
 
 ## 오프라인 대화 흐름 검사
 
@@ -52,11 +52,13 @@ Storage 설정이 있으면 로컬 CSV 없이 통계를 로딩합니다. CSV는 
 
 ## Cloud 배포 및 시연 확인
 
-- Repository: encore-ai-campus/mle-02-p1-team2
-- Branch: 이 앱 변경사항이 push된 브랜치 (검토·병합 후 main 사용)
+- Repository: kimgomja/mle-02-p1-team2 (개인 Fork)
+- Branch: codex/cloud-statistics-db-fallback
 - Main file path: src/Project_1/app.py
 - Python: 3.12
-- Dependencies: app.py 옆 requirements.txt (기존 패키지로 Storage를 읽으므로 추가 SDK 불필요)
+- Dependencies: app.py 옆 requirements.txt
+
+SIF·KOSHA 문서의 공개 이용 범위가 정리될 때까지 Streamlit 공개 앱 생성은 보류합니다. Fork 브랜치 코드는 배포 후보이며 Cloud 통합 검증 전입니다.
 
 Cloud에는 `.env`나 원본 데이터를 업로드하지 않습니다. GitHub에 코드를 push한 뒤 Cloud Secrets를 설정합니다. 다른 PC 또는 시크릿 창에서 통계·규모 필터·6년 추세(2021 사망만인율 공백), SIF/KOSHA 검색, 출처, 후속 질문, 새 대화를 확인합니다. 마지막으로 로컬 Streamlit과 Docker를 종료한 뒤 같은 Cloud URL에서 재확인합니다. 실제 질문은 OpenAI API를 사용합니다.
 
@@ -64,8 +66,9 @@ Cloud에는 `.env`나 원본 데이터를 업로드하지 않습니다. GitHub�
 
 ## 알게 된 점과 유의사항
 
-- 현재 Storage 키 조합으로는 비공개 CSV 요청이 인증되지 않았습니다. 그래서 실제 화면에서 확인된 DB 대체 경로를 추가했습니다.
-- DB 대체 경로는 `industry_stat` 120개 문서에서 2025년 4개 지표와 산업중분류 30개를 검증해 사용합니다. `자료 없음`은 결측치로 유지합니다.
-- 이 DB에는 2020~2024년 통계 문서가 없어 6년 추세 차트는 2025년만 값이 있고 나머지는 비어 있습니다. 전체 기간 분석이 필요하면 Storage 인증을 해결해야 합니다.
+- 현재 Storage 키 조합으로는 비공개 CSV 요청이 인증되지 않았습니다. 그래서 확인된 2025년 DB 통계를 읽는 대체 경로를 추가했습니다.
+- 공단 통계 CSV에는 CP949 인코딩 파일도 있습니다. 로더는 UTF-8 BOM과 CP949를 모두 읽고, 30개 업종·10개 규모 열과 숫자 값을 검증합니다. 알 수 없는 문자를 결측치로 숨기지 않습니다.
+- DB 대체 경로는 `industry_stat` 120개 문서에서 2025년 4개 지표와 산업중분류 30개를 검증해 사용합니다. `자료 없음`은 결측으로 유지합니다.
+- 이 DB에는 2020~2024년 통계 문서가 없어 6년 추세 차트는 2025년만 값이 있고 나머지는 비어 있습니다.
 - DB 연결은 읽기 전용 트랜잭션으로 실행합니다. 재적재나 테이블 변경은 하지 않습니다.
-- Storage 인증이 해결되기 전까지는 앱 안내문을 확인하고 2025년 통계로 해석합니다. 대시보드 실행만으로 원래 18개 CSV가 모두 읽혔다고 판단하면 안 됩니다.
+- SIF·KOSHA 자료의 공개 사용 범위가 확인되기 전에는 공개 Streamlit 배포를 진행하지 않습니다.

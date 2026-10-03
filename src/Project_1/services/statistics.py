@@ -187,11 +187,30 @@ def storage_files() -> dict[tuple[str, int], str]:
 
 def load_stat_csv(metric: str, year: int, path: Path | BytesIO) -> pd.DataFrame:
     """Day 7·8처럼 크기가 가로열인 CSV를 공통 long 형식으로 변환한다."""
-    wide = pd.read_csv(path, encoding="utf-8-sig")
+    try:
+        wide = pd.read_csv(path, encoding="utf-8-sig", dtype=str, keep_default_na=False)
+    except UnicodeDecodeError:
+        if hasattr(path, "seek"):
+            path.seek(0)
+        wide = pd.read_csv(path, encoding="cp949", dtype=str, keep_default_na=False)
     if wide.shape[1] != 12 or wide.columns[:2].tolist() != ["대업종", "구분"]:
         raise ValueError(f"예상과 다른 산업중분류×규모 CSV 구조: {path}")
     wide.columns = ["대업종", "산업중분류", *SIZE_ORDER]
-    wide["산업중분류"] = wide["산업중분류"].astype(str).str.strip()
+    for column in ("대업종", "산업중분류"):
+        wide[column] = wide[column].astype(str).str.strip()
+        if wide[column].eq("").any():
+            raise ValueError(f"산업 구분 값이 비어 있습니다: {path}")
+    if len(wide) != 30 or wide["산업중분류"].nunique() != 30:
+        raise ValueError(f"산업중분류 30개 행 또는 중복 여부를 확인해 주세요: {path}")
+
+    missing_values = {"", "-", "—", "–", "자료 없음", "자료없음", "N/A", "NA"}
+    for column in SIZE_ORDER:
+        raw = wide[column].str.strip().str.replace(",", "", regex=False)
+        numeric = pd.to_numeric(raw.mask(raw.isin(missing_values)), errors="coerce")
+        invalid = raw.ne("") & ~raw.isin(missing_values) & numeric.isna()
+        if invalid.any():
+            raise ValueError(f"숫자로 변환할 수 없는 통계 값이 있습니다: {path}")
+        wide[column] = numeric
     long = wide.melt(
         id_vars=["대업종", "산업중분류"],
         value_vars=SIZE_ORDER,
